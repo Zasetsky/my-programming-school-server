@@ -10,33 +10,36 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        // Валидация полей, где 'parent' является необязательным
+        // Валидация только необходимых полей
         $request->validate([
-            'name' => 'required|string',
             'email' => 'required|string|email|unique:users',
             'password' => 'required|string|confirmed',
-            'phone' => 'required|string',
-            'date_of_birth' => 'required|date',
-            'parent' => 'nullable|string', // Необязательное поле
+            'role' => 'required|string|in:Учитель,Ученик', // Убедитесь, что роль является одной из двух опций
         ]);
-    
+
         $user = new User([
-            'name' => $request->name,
             'email' => $request->email,
             'password' => bcrypt($request->password),
-            'phone' => $request->phone,
-            'date_of_birth' => $request->date_of_birth,
-            'parent' => $request->parent, // Необязательное поле
-            'status' => 'не оплачен', // Вы можете установить начальный статус здесь
+            'role' => $request->role,
+            // Начальные значения для других полей
+            'name' => '',
+            'phone' => '',
+            'date_of_birth' => null,
+            'parent' => null,
+            'status' => 'не оплачен',
         ]);
-    
+
         $user->save();
-    
+
+        // Создание токена доступа
+        $token = $user->createToken('Personal Access Token')->accessToken;
+
         return response()->json([
             'message' => 'Пользователь успешно зарегистрирован!',
+            'token' => $token,
         ], 201);
     }
-        
+
 
     public function login(Request $request)
     {
