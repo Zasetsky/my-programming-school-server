@@ -4,16 +4,20 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Tymon\JWTAuth\Facades\JWTAuth;
+use Tymon\JWTAuth\Exceptions\JWTException;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        Log::info('Request:', $request->all());
+
         // Валидация только необходимых полей
         $request->validate([
             'email' => 'required|string|email|unique:users',
-            'password' => 'required|string|confirmed',
+            'password' => 'required|string|same:confirmPassword',
             'role' => 'required|string|in:Учитель,Ученик', // Убедитесь, что роль является одной из двух опций
         ]);
 
@@ -29,10 +33,16 @@ class AuthController extends Controller
             'status' => 'не оплачен',
         ]);
 
+        Log::info('User before save:', $user->toArray());
         $user->save();
+        Log::info('User after save:', $user->toArray());
 
         // Создание токена доступа
-        $token = $user->createToken('Personal Access Token')->accessToken;
+        try {
+            $token = JWTAuth::fromUser($user);
+        } catch (JWTException $e) {
+            return response()->json(['error' => 'could_not_create_token'], 500);
+        }
 
         return response()->json([
             'message' => 'Пользователь успешно зарегистрирован!',
@@ -40,25 +50,18 @@ class AuthController extends Controller
         ], 201);
     }
 
-
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|string|email',
-            'password' => 'required|string',
-        ]);
+        $credentials = $request->only('email', 'password');
 
-        if (!Auth::attempt($request->only(['email', 'password']))) {
-            return response()->json([
-                'message' => 'Неправильный email или пароль!',
-            ], 401);
+        try {
+            if (!$token = JWTAuth::attempt($credentials)) {
+                return response()->json(['error' => 'invalid_credentials'], 401);
+            }
+        } catch (JWTException $e) {
+            return response()->json(['error' => 'could_not_create_token'], 500);
         }
 
-        $user = $request->user();
-        $token = $user->createToken('Personal Access Token')->accessToken;
-
-        return response()->json([
-            'token' => $token,
-        ]);
+        return response()->json(['token' => $token]);
     }
 }
