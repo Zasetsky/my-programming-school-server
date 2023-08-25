@@ -4,21 +4,20 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
-use Illuminate\Support\Facades\Log;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
+use Illuminate\Support\Facades\Hash;
+
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        Log::info('Request:', $request->all());
-
         // Валидация только необходимых полей
         $request->validate([
             'email' => 'required|string|email|unique:users',
             'password' => 'required|string|same:confirmPassword',
-            'role' => 'required|string|in:Учитель,Ученик', // Убедитесь, что роль является одной из двух опций
+            'role' => 'required|string|in:Учитель,Ученик',
         ]);
 
         $user = new User([
@@ -33,9 +32,7 @@ class AuthController extends Controller
             'status' => 'не оплачен',
         ]);
 
-        Log::info('User before save:', $user->toArray());
         $user->save();
-        Log::info('User after save:', $user->toArray());
 
         // Создание токена доступа
         try {
@@ -52,12 +49,33 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->only('email', 'password');
+        // Валидация входящих данных
+        $request->validate([
+            'login' => 'required|string',
+            'password' => 'required|string',
+            'role' => 'required|string|in:Учитель,Ученик', // Валидация роли
+        ]);
 
+        // Получаем входные данные
+        $login = $request->input('login');
+        $password = $request->input('password');
+        $role = $request->input('role'); // Получаем роль
+
+        // Проверяем, является ли введенный логин адресом электронной почты
+        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
+            $user = User::where('email', $login)->first();
+        } else {
+            $user = User::where('phone', $login)->first();
+        }
+
+        // Проверяем существование пользователя и совпадение роли
+        if (!$user || !Hash::check($password, $user->password) || $user->role !== $role) {
+            return response()->json(['error' => 'invalid_credentials'], 401);
+        }
+
+        // Создаем токен
         try {
-            if (!$token = JWTAuth::attempt($credentials)) {
-                return response()->json(['error' => 'invalid_credentials'], 401);
-            }
+            $token = JWTAuth::fromUser($user);
         } catch (JWTException $e) {
             return response()->json(['error' => 'could_not_create_token'], 500);
         }
