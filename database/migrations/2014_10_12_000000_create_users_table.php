@@ -21,6 +21,7 @@ return new class extends Migration
             $table->date('date_of_birth')->nullable();
             $table->string('parent')->nullable();
             $table->string('status')->default('не оплачен');
+            $table->string('user_number')->unique()->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

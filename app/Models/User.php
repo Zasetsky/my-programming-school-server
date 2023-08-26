@@ -24,6 +24,7 @@ class User extends Authenticatable implements JWTSubject
         'parent',         // Родитель (не обязательное поле)
         'role',
         'status',         // Статус (оплачен, не оплачен)
+        'user_number',    // Порядковый номер пользователя
     ];
 
     /**

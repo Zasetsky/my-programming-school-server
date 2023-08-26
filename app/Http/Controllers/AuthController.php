@@ -8,6 +8,8 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Illuminate\Support\Facades\Hash;
 
+// use Illuminate\Support\Facades\Log;
+
 
 class AuthController extends Controller
 {
@@ -20,6 +22,12 @@ class AuthController extends Controller
             'role' => 'required|string|in:Учитель,Ученик',
         ]);
 
+        // Генерация случайного уникального номера
+        do {
+            $userNumber = random_int(100000, 999999);
+        } while (User::where('user_number', $userNumber)->exists());
+
+        // Создание пользователя
         $user = new User([
             'email' => $request->email,
             'password' => bcrypt($request->password),
@@ -30,9 +38,10 @@ class AuthController extends Controller
             'date_of_birth' => null,
             'parent' => null,
             'status' => 'не оплачен',
+            'user_number' => $userNumber,
         ]);
-
         $user->save();
+
 
         // Создание токена доступа
         try {
@@ -44,6 +53,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Пользователь успешно зарегистрирован!',
             'token' => $token,
+            'uniqueID' => $userNumber,
         ], 201);
     }
 
@@ -53,13 +63,13 @@ class AuthController extends Controller
         $request->validate([
             'login' => 'required|string',
             'password' => 'required|string',
-            'role' => 'required|string|in:Учитель,Ученик', // Валидация роли
+            'role' => 'required|string|in:Учитель,Ученик',
         ]);
 
         // Получаем входные данные
         $login = $request->input('login');
         $password = $request->input('password');
-        $role = $request->input('role'); // Получаем роль
+        $role = $request->input('role');
 
         // Проверяем, является ли введенный логин адресом электронной почты
         if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
@@ -68,18 +78,34 @@ class AuthController extends Controller
             $user = User::where('phone', $login)->first();
         }
 
-        // Проверяем существование пользователя и совпадение роли
-        if (!$user || !Hash::check($password, $user->password) || $user->role !== $role) {
-            return response()->json(['error' => 'invalid_credentials'], 401);
+        // Поля, которые могут быть неверными
+        $fields = [];
+        $errorMessage = 'Неверные учетные данные';
+
+        // Проверяем существование пользователя, совпадение роли и пароля
+        if (!$user) {
+            $fields['login'] = true;
+            $errorMessage = 'Пользователь с таким логином не найден';
+        } elseif (!Hash::check($password, $user->password)) {
+            $fields['password'] = true;
+            $errorMessage = 'Неверный пароль';
+        } elseif ($user->role !== $role) {
+            $errorMessage = 'Пользователь с такой ролью не найден';
+        } else {
+            // Если все хорошо, создаем токен
+            try {
+                $token = JWTAuth::fromUser($user);
+
+                // Возвращаем существующий уникальный номер пользователя
+                return response()->json(['token' => $token, 'uniqueID' => $user->user_number]);
+            } catch (JWTException $e) {
+                return response()->json(['error' => 'could_not_create_token'], 500);
+            }
         }
 
-        // Создаем токен
-        try {
-            $token = JWTAuth::fromUser($user);
-        } catch (JWTException $e) {
-            return response()->json(['error' => 'could_not_create_token'], 500);
-        }
-
-        return response()->json(['token' => $token]);
+        return response()->json([
+            'error' => $errorMessage,
+            'fields' => $fields
+        ], 401);
     }
 }
