@@ -51,7 +51,7 @@ class AuthController extends Controller
                 'message' => 'Пользователь успешно зарегистрирован!',
                 'token' => $token,
                 'uniqueID' => $userNumber,
-            ], 201)->withCookie(cookie('token', $token, 60, null, null, false, true));
+            ], 201)->withCookie(cookie('token', $token, 60, null, null, true, true));
         } catch (JWTException $e) {
             return response()->json(['error' => 'could_not_create_token'], 500);
         }
@@ -96,7 +96,7 @@ class AuthController extends Controller
             try {
                 $token = JWTAuth::fromUser($user);
                 return response()->json(['token' => $token, 'uniqueID' => $user->user_number])
-                    ->withCookie(cookie('token', $token, 60, null, null, false, true));
+                    ->withCookie(cookie('token', $token, 60, null, null, true, true));
             } catch (JWTException $e) {
                 return response()->json(['error' => 'could_not_create_token'], 500);
             }
