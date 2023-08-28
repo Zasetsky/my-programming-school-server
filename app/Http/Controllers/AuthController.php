@@ -8,6 +8,7 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Illuminate\Support\Facades\Hash;
 
+
 // use Illuminate\Support\Facades\Log;
 
 
@@ -46,15 +47,14 @@ class AuthController extends Controller
         // Создание токена доступа
         try {
             $token = JWTAuth::fromUser($user);
+            return response()->json([
+                'message' => 'Пользователь успешно зарегистрирован!',
+                'token' => $token,
+                'uniqueID' => $userNumber,
+            ], 201)->withCookie(cookie('token', $token, 60, null, null, false, true));
         } catch (JWTException $e) {
             return response()->json(['error' => 'could_not_create_token'], 500);
         }
-
-        return response()->json([
-            'message' => 'Пользователь успешно зарегистрирован!',
-            'token' => $token,
-            'uniqueID' => $userNumber,
-        ], 201);
     }
 
     public function login(Request $request)
@@ -95,9 +95,8 @@ class AuthController extends Controller
             // Если все хорошо, создаем токен
             try {
                 $token = JWTAuth::fromUser($user);
-
-                // Возвращаем существующий уникальный номер пользователя
-                return response()->json(['token' => $token, 'uniqueID' => $user->user_number]);
+                return response()->json(['token' => $token, 'uniqueID' => $user->user_number])
+                    ->withCookie(cookie('token', $token, 60, null, null, false, true));
             } catch (JWTException $e) {
                 return response()->json(['error' => 'could_not_create_token'], 500);
             }
