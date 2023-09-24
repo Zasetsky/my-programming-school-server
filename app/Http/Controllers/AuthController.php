@@ -33,7 +33,6 @@ class AuthController extends Controller
             'email' => $request->email,
             'password' => bcrypt($request->password),
             'role' => $request->role,
-            // Начальные значения для других полей
             'name' => '',
             'phone' => '',
             'date_of_birth' => null,
@@ -51,7 +50,7 @@ class AuthController extends Controller
                 'message' => 'Пользователь успешно зарегистрирован!',
                 'token' => $token,
                 'uniqueID' => $userNumber,
-            ], 201)->withCookie(cookie('token', $token, 60, null, null, true, true));
+            ], 201);
         } catch (JWTException $e) {
             return response()->json(['error' => 'could_not_create_token'], 500);
         }
@@ -95,8 +94,7 @@ class AuthController extends Controller
             // Если все хорошо, создаем токен
             try {
                 $token = JWTAuth::fromUser($user);
-                return response()->json(['token' => $token, 'uniqueID' => $user->user_number])
-                    ->withCookie(cookie('token', $token, 60, null, null, true, true));
+                return response()->json(['token' => $token, 'uniqueID' => $user->user_number]);
             } catch (JWTException $e) {
                 return response()->json(['error' => 'could_not_create_token'], 500);
             }

@@ -16,15 +16,23 @@ class User extends Authenticatable implements JWTSubject
      * @var array<string, mixed>
      */
     protected $fillable = [
-        'name',           // Имя
-        'email',          // Электронная почта
-        'password',       // Пароль
-        'phone',          // Телефон
-        'date_of_birth',  // Дата рождения
-        'parent',         // Родитель (не обязательное поле)
+        'name',
+        // Имя
+        'email',
+        // Электронная почта
+        'password',
+        // Пароль
+        'phone',
+        // Телефон
+        'date_of_birth',
+        // Дата рождения
+        'parent',
+        // Родитель (не обязательное поле)
         'role',
-        'status',         // Статус (оплачен, не оплачен)
-        'user_number',    // Порядковый номер пользователя
+        'status',
+        // Статус (оплачен, не оплачен)
+        'user_number',
+        // Порядковый номер пользователя
     ];
 
     /**
@@ -44,7 +52,8 @@ class User extends Authenticatable implements JWTSubject
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'date_of_birth' => 'datetime', // Предполагаем, что дата рождения хранится в формате даты и времени
+        'date_of_birth' => 'datetime',
+        // Предполагаем, что дата рождения хранится в формате даты и времени
         'password' => 'hashed',
     ];
 
@@ -64,5 +73,10 @@ class User extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [];
+    }
+
+    public function subjects()
+    {
+        return $this->hasMany(Subject::class);
     }
 }
