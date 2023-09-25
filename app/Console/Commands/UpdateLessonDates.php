@@ -5,14 +5,13 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Subject;
 use App\Services\LessonDateService;
-
+use Illuminate\Support\Facades\Log;
 use DateTime;
 use DateTimeZone;
 use DateInterval;
 
 class UpdateLessonDates extends Command
 {
-    // Инжектим зависимость на LessonDateService
     protected $lessonDateService;
 
     protected $signature = 'update:lesson-dates';
@@ -26,53 +25,63 @@ class UpdateLessonDates extends Command
 
     public function handle()
     {
-        // Получаем все предметы
-        $subjects = Subject::all();
+        Log::info('Handle method called');
 
-        foreach ($subjects as $subject) {
-            $modules = json_decode($subject->modules, true);
-
-            foreach ($modules as &$module) {
-                // Проверяем, нужно ли обновить этот модуль
-                if ($this->shouldUpdateModule($module)) {
-                    // Обновляем completedLessonCount
-                    $module['completedLessonCount'] += 1;
-
-                    // Обновляем nextLessonDate
-                    // Здесь вызываем метод из инжектированного сервиса для обновления даты следующего урока и счетчика завершенных уроков
-                    $module = $this->lessonDateService->calculateDates($module, $module['completedLessonCount']);
-                }
+        Subject::chunk(200, function ($subjects) {
+            foreach ($subjects as $subject) {
+                $this->processSubject($subject);
             }
-
-            // Сохраняем обновленные модули
-            $subject->modules = json_encode($modules);
-            $subject->save();
-        }
+        });
     }
 
-    // Проверяем, нужно ли обновлять данный модуль. Сравниваем текущее время с временем окончания урока
+    private function processSubject($subject)
+    {
+        $modules = $subject->modules;
+
+        foreach ($modules as &$module) {
+            if (!$this->isValidModule($module)) {
+                Log::warning("Invalid module data. Skipping...");
+                continue;
+            }
+
+            if ($this->shouldUpdateModule($module)) {
+                $module['completedLessonCount']++;
+                $module = $this->lessonDateService->calculateDates($module, $module['completedLessonCount']);
+            }
+        }
+
+        $subject->modules = $modules;
+        $subject->save();
+    }
+
+    private function isValidModule(array $module): bool
+    {
+        return isset($module['nextLessonDate'], $module['startTime'], $module['duration']);
+    }
+
     private function shouldUpdateModule(array $module): bool
     {
-        // Получаем текущее время
         $now = new DateTime('now', new DateTimeZone('Europe/Moscow'));
-
-         // Преобразуем nextLessonDate и startTime в объекты DateTime
         $nextLessonDate = DateTime::createFromFormat('d-m-Y', $module['nextLessonDate'], new DateTimeZone('Europe/Moscow'));
+
+        if ($nextLessonDate === false) {
+            // Здесь код обработки ошибки
+            \Log::error("Received nextLessonDate: " . $module['nextLessonDate']);
+            throw new \Exception('Неверный формат даты в nextLessonDate');
+        }
+
         $startTime = DateTime::createFromFormat('H:i', $module['startTime'], new DateTimeZone('Europe/Moscow'));
 
-        // Преобразуем startTime в объект DateTime, который включает и дату, и время
         $nextLessonDateTime = clone $nextLessonDate;
         $nextLessonDateTime->setTime($startTime->format('H'), $startTime->format('i'));
 
-        // Добавляем продолжительность урока
-        $durationArray = explode(' ', $module['duration']); // предположим, что формат "1 hour 30 minutes"
+        $durationArray = explode(' ', $module['duration']); // предполагается, что формат "1 hour 30 minutes"
         $hours = (int) $durationArray[0];
         $minutes = (int) $durationArray[2];
 
         $interval = new DateInterval("PT{$hours}H{$minutes}M");
         $nextLessonDateTime->add($interval);
 
-        // Добавляем к времени начала урока его продолжительность и сравниваем с текущим временем
         return $now >= $nextLessonDateTime;
     }
 }

@@ -12,7 +12,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('update:lesson-dates')->everyMinute();
+        $schedule->command('update:lesson-dates')
+             ->everyMinute()
+             ->appendOutputTo(storage_path('logs/scheduler.log'));
     }
 
     /**
