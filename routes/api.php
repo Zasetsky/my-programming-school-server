@@ -1,9 +1,11 @@
 <?php
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SubjectController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\LessonController;
 
 // Маршрут для получения информации о текущем авторизованном пользователе
 Route::middleware('auth:api')->get('/user', function (Request $request) {
@@ -24,7 +26,10 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/addSubject', [SubjectController::class, 'addSubject']);
     Route::put('/updateSubject/{id}', [SubjectController::class, 'updateSubject']);
 
-    // Роут для добавления модуля к предмету
+    // Роуты для модулей
     Route::post('/addModuleToSubject/{subjectId}', [SubjectController::class, 'addModuleToSubject']);
     Route::put('/updateModuleInSubject/{subjectId}/{moduleId}', [SubjectController::class, 'updateModuleInSubject']);
+
+    // Роуты для уроков
+    Route::get('/getLessons', [LessonController::class, 'getAllUserLessons']);
 });

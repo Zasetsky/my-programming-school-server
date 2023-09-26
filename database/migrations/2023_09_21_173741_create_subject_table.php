@@ -10,7 +10,7 @@ return new class extends Migration {
         Schema::create('subjects', function (Blueprint $table) {
             $table->id();
             $table->string('subject_code');
-            $table->unsignedBigInteger('user_id'); // Внешний ключ для пользователя
+            $table->uuid('user_id'); // Внешний ключ для пользователя
             $table->string('name');
             $table->json('modules'); // JSON-представление модулей
             $table->timestamps();

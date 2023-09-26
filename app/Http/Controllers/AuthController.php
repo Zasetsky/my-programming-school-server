@@ -37,7 +37,7 @@ class AuthController extends Controller
             'phone' => '',
             'date_of_birth' => null,
             'parent' => null,
-            'status' => 'не оплачен',
+            'status' => 'unpaid',
             'user_number' => $userNumber,
         ]);
         $user->save();

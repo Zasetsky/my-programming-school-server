@@ -26,6 +26,8 @@ class SubjectController extends Controller
         try {
             Log::info('addSubject called', ['request' => $request->all()]);
 
+            Log::info('Auth ID', ['id' => auth()->id()]);
+
             $request->validate([
                 'subject_code' => [
                     'required',
@@ -135,6 +137,8 @@ class SubjectController extends Controller
             'startTime' => 'sometimes|required|date_format:H:i',
             'duration' => 'sometimes|required|string',
             'nextLessonDate' => 'sometimes|required|date_format:d-m-Y',
+            'rescheduledLessons' => 'sometimes|required|array|max:2',
+            'rescheduledLessons.*' => 'required_with:rescheduledLessons|date_format:d-m-Y',
         ]);
 
         // Поиск предмета по ID
