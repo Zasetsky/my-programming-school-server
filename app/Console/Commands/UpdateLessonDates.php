@@ -25,8 +25,6 @@ class UpdateLessonDates extends Command
 
     public function handle()
     {
-        Log::info('Handle method called');
-
         Subject::chunk(200, function ($subjects) {
             foreach ($subjects as $subject) {
                 $this->processSubject($subject);

@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\LessonController;
+use App\Http\Controllers\HomeworkController;
 
 // Маршрут для получения информации о текущем авторизованном пользователе
 Route::middleware('auth:api')->get('/user', function (Request $request) {
@@ -32,4 +33,9 @@ Route::middleware('auth:api')->group(function () {
 
     // Роуты для уроков
     Route::get('/getLessons', [LessonController::class, 'getAllUserLessons']);
+    Route::post('/rescheduleLesson', [LessonController::class, 'rescheduleLesson']);
+
+    // Роуты для домашней работы
+    Route::post('/addHomeworkToModule', [HomeworkController::class, 'addHomeworkToModule']);
+    Route::get('/getAllHomeworks', [HomeworkController::class, 'getAllHomeworks']);
 });

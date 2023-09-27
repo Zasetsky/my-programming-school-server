@@ -27,9 +27,11 @@ class LessonController extends Controller
         $now = new DateTime('now', new DateTimeZone('Europe/Moscow'));
 
         foreach ($subjects as $subject) {
-            $subjectId = $subject->id; // Идентификатор предмета
+            $subjectId = $subject->id;
 
-            foreach ($subject->modules as $moduleId => $module) { // Добавлен $moduleId
+            foreach ($subject->modules as $module) {
+                $moduleId = $module['id']; // Получаем уникальный ID модуля
+
                 $nextLessonDate = DateTime::createFromFormat('d-m-Y', $module['nextLessonDate']);
                 $lessonDays = $module['lessonDays'];
                 $totalLessonCount = $module['totalLessonCount'];
@@ -44,7 +46,6 @@ class LessonController extends Controller
                 $lastLessonDateTime->setTime($startTime->format('H'), $startTime->format('i'));
                 $lastLessonDateTime->add($interval);
 
-                // Проверка, является ли модуль активным
                 if ($now < $lastLessonDateTime || $completedLessonCount < $totalLessonCount) {
                     for ($i = $completedLessonCount; $i < $totalLessonCount; $i++) {
                         $lessonDate = $this->lessonDateService->calculateNextLessonDate(
@@ -52,6 +53,17 @@ class LessonController extends Controller
                             $lessonDays,
                             $i - $completedLessonCount
                         );
+
+                        $originalDateFormatted = $lessonDate->format('d-m-Y');
+                        $rescheduledDate = null;
+                        if (isset($module['rescheduledLessons'])) {
+                            foreach ($module['rescheduledLessons'] as $rescheduledLesson) {
+                                if ($rescheduledLesson['originalDate'] === $originalDateFormatted) {
+                                    $rescheduledDate = $rescheduledLesson['newDate'];
+                                    break;
+                                }
+                            }
+                        }
 
                         $lessonDateTime = clone $lessonDate;
                         $lessonDateTime->setTime($startTime->format('H'), $startTime->format('i'));
@@ -61,9 +73,10 @@ class LessonController extends Controller
                             $lessons[] = [
                                 'subjectId' => $subjectId,
                                 'moduleId' => $moduleId,
+                                // Используем уникальный ID
                                 'subjectName' => $subject->name,
                                 'moduleName' => $module['name'],
-                                'lessonDate' => $lessonDate->format('d-m-Y')
+                                'lessonDate' => $rescheduledDate ? $rescheduledDate : $lessonDate->format('d-m-Y')
                             ];
                         }
                     }
@@ -80,6 +93,7 @@ class LessonController extends Controller
         $subjectId = $request->input('subjectId');
         $moduleId = $request->input('moduleId');
         $newDate = $request->input('newDate'); // Новая дата в формате d-m-Y
+        $originalDate = $request->input('originalDate'); // Изначальная дата в формате d-m-Y
 
         // Поиск соответствующего предмета
         $subject = Subject::where('id', $subjectId)->where('user_id', $userId)->first();
@@ -116,8 +130,13 @@ class LessonController extends Controller
                     return response()->json(['error' => 'Cannot reschedule more than 2 lessons for a single module'], 400);
                 }
 
-                // Добавление новой перенесенной даты
-                $module['rescheduledLessons'][] = $newDate;
+                // Добавление нового объекта перенесенной даты
+                $rescheduledLesson = [
+                    'originalDate' => $originalDate,
+                    // изначальная дата из запроса
+                    'newDate' => $newDate // новая дата из запроса
+                ];
+                $module['rescheduledLessons'][] = $rescheduledLesson;
 
                 break;
             }
