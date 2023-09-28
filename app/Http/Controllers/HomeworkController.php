@@ -66,7 +66,7 @@ class HomeworkController extends Controller
                 if (isset($module['homeworks'])) {
                     foreach ($module['homeworks'] as $homework) {
                         $homeworks[] = [
-                            'moduleName' => $subject->name,
+                            'subjectName' => $subject->name,
                             'homeworkDate' => $homework['homeworkDate'],
                             'homeworkText' => $homework['homeworkText'],
                             'startTime' => $module['startTime']

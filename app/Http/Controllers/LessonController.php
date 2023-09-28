@@ -76,7 +76,8 @@ class LessonController extends Controller
                                 // Используем уникальный ID
                                 'subjectName' => $subject->name,
                                 'moduleName' => $module['name'],
-                                'lessonDate' => $rescheduledDate ? $rescheduledDate : $lessonDate->format('d-m-Y')
+                                'lessonDate' => $rescheduledDate ? $rescheduledDate : $lessonDate->format('d-m-Y'),
+                                'startTime' => $startTime->format('H:i')
                             ];
                         }
                     }
