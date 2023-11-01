@@ -2,85 +2,59 @@
 
 namespace App\Services;
 
-use DateTime;
-use DateTimeZone;
+use Carbon\Carbon;
+use App\Models\Module;
 
 class LessonDateService
 {
     /**
-     * Вычисляет дату следующего урока и дату окончания на основе данных модуля.
+     * Генерация уроков для модуля.
      *
-     * @param array $moduleData - Данные модуля.
-     * @param int $completedLessonCount - Количество завершенных уроков.
-     * @param bool $isNewModule - Является ли это новым модулем.
-     *
-     * @return array - Обновленные данные модуля.
+     * @param Module $module
+     * @return array
      */
-    public function calculateDates(array $moduleData, int $completedLessonCount = 0, bool $isNewModule = false): array
+    public function generateLessonsForModule(Module $module)
     {
-        $lessonDays = $moduleData['lessonDays'];
-        $totalLessonCount = $moduleData['totalLessonCount'];
+        $lessons = [];
+        $startDate = Carbon::createFromFormat('d-m-Y', $module->startDate);
+        $startTime = Carbon::createFromFormat('H:i', $module->startTime);
+        $duration = $module->duration; // Продолжительность урока в минутах
+        $lessonDays = $module->lessonDays; // Дни недели
+        $totalLessonCount = $module->totalLessonCount; // Общее количество уроков
 
-        if ($isNewModule) {
-            $startDate = DateTime::createFromFormat('d-m-Y', $moduleData['startDate'], new DateTimeZone('Europe/Moscow'));
-            $nextLessonDate = $this->calculateNextLessonDate($startDate, $lessonDays);
-        } else {
-            $nextLessonDate = DateTime::createFromFormat('d-m-Y', $moduleData['nextLessonDate'], new DateTimeZone('Europe/Moscow'));
-        }
+        $currentLessonCount = 0;
+        $currentDate = clone $startDate;
 
-        // Вычисление даты следующего урока
-        $nextLessonDate = $this->calculateNextLessonDate($nextLessonDate, $lessonDays, $completedLessonCount);
-        $moduleData['nextLessonDate'] = $nextLessonDate->format('d-m-Y');
+        while ($currentLessonCount < $totalLessonCount) {
+            if (in_array($currentDate->format('l'), $lessonDays)) {
+                $currentDateTime = Carbon::now(); // текущая дата и время
 
-        // Вычисление даты окончания
-        $endDate = $this->calculateEndDate($nextLessonDate, $lessonDays, $totalLessonCount - $completedLessonCount);
-        $moduleData['endDate'] = $endDate->format('d-m-Y');
+                $lessonStartTime = clone $currentDate;
+                $lessonStartTime->setTimeFromTimeString($startTime->toTimeString());
 
-        return $moduleData;
-    }
+                // Если время начала урока больше текущего времени, добавляем урок
+                if ($lessonStartTime->greaterThan($currentDateTime) || $currentDate->greaterThan($currentDateTime)) {
+                    $lessonEndTime = clone $lessonStartTime;
+                    $lessonEndTime->addMinutes($duration);
 
-    /**
-     * Вычисляет дату следующего урока на основе даты начала и дней уроков.
-     *
-     * @param DateTime $startDate - Дата начала.
-     * @param array $lessonDays - Дни, в которые проходят уроки.
-     * @param int $completedLessonCount - Количество завершенных уроков.
-     *
-     * @return DateTime - Дата следующего урока.
-     */
-    public function calculateNextLessonDate(DateTime $startDate, array $lessonDays, int $completedLessonCount = 0): DateTime
-    {
-        $nextLessonDate = clone $startDate;
+                    $lessons[] = [
+                        'lesson_date' => $currentDate->toDateString(),
+                        'start_time' => $lessonStartTime->toTimeString(),
+                        'end_time' => $lessonEndTime->toTimeString(),
+                        'status' => 'not_active'
+                    ];
 
-        // Учёт уже проведенных уроков
-        for ($i = 0; $i < $completedLessonCount; $i++) {
-            do {
-                $nextLessonDate->modify('+1 day');
-            } while (!in_array($nextLessonDate->format('l'), $lessonDays));
-        }
-        return $nextLessonDate;
-    }
-
-    /**
-     * Вычисляет дату окончания на основе даты следующего урока, дней уроков и оставшегося количества уроков.
-     *
-     * @param DateTime $nextLessonDate - Дата следующего урока.
-     * @param array $lessonDays - Дни, в которые проходят уроки.
-     * @param int $remainingLessonCount - Количество оставшихся уроков.
-     *
-     * @return DateTime - Дата окончания.
-     */
-    public function calculateEndDate(DateTime $nextLessonDate, array $lessonDays, int $remainingLessonCount): DateTime
-    {
-        $endDate = clone $nextLessonDate;
-        $count = 0;
-
-        while ($count < $remainingLessonCount) {
-            $endDate->modify('+1 day');
-            if (in_array($endDate->format('l'), $lessonDays)) {
-                $count++;
+                    $currentLessonCount++;
+                }
             }
+
+            if ($currentLessonCount >= $totalLessonCount) {
+                break;
+            }
+
+            $currentDate->addDay();
         }
-        return $endDate;
+
+        return $lessons;
     }
 }

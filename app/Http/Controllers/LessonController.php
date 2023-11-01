@@ -3,152 +3,102 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Subject;
-use App\Services\LessonDateService;
-use DateTime;
-use DateTimeZone;
-use DateInterval;
+use Carbon\Carbon;
+use App\Models\Lesson;
+use Illuminate\Support\Facades\Auth;
+
+use Illuminate\Support\Facades\Log;
 
 class LessonController extends Controller
 {
-    protected $lessonDateService;
-
-    public function __construct(LessonDateService $lessonDateService)
+    /**
+     * Установить или обновить домашнюю работу урока.
+     */
+    public function setHomework(Request $request, $lessonId)
     {
-        $this->lessonDateService = $lessonDateService;
+        $request->validate([
+            'homework' => 'required|string'
+        ]);
+
+        $lesson = Lesson::find($lessonId);
+        if (!$lesson) {
+            return response()->json(['message' => 'Lesson not found'], 404);
+        }
+
+        $message = 'Homework set successfully';
+        if ($lesson->homework) {
+            $message = 'Homework updated successfully';
+        }
+
+        $lesson->homework = $request->homework;
+        $lesson->save();
+
+        return response()->json(['message' => $message], 200);
     }
 
-    public function getAllUserLessons(Request $request)
+    /**
+     * Перенести урок.
+     */
+    public function rescheduleLesson(Request $request, $lessonId)
     {
-        $userId = $request->user()->id;
-        $subjects = Subject::where('user_id', $userId)->get();
+        try {
+            Log::info('rescheduleLesson called', ['request' => $request->all()]);
+            $request->validate([
+                'new_date' => 'sometimes|date_format:Y-m-d',
+                'new_time' => 'sometimes|date_format:H:i'
+            ]);
 
-        $lessons = [];
-        $now = new DateTime('now', new DateTimeZone('Europe/Moscow'));
+            Log::info('Validation passed');
 
-        foreach ($subjects as $subject) {
-            $subjectId = $subject->id;
-
-            foreach ($subject->modules as $module) {
-                $moduleId = $module['id']; // Получаем уникальный ID модуля
-
-                $nextLessonDate = DateTime::createFromFormat('d-m-Y', $module['nextLessonDate']);
-                $lessonDays = $module['lessonDays'];
-                $totalLessonCount = $module['totalLessonCount'];
-                $completedLessonCount = $module['completedLessonCount'];
-                $startTime = DateTime::createFromFormat('H:i', $module['startTime']);
-                $durationArray = explode(' ', $module['duration']);
-                $hours = (int) $durationArray[0];
-                $minutes = (int) $durationArray[2];
-                $interval = new DateInterval("PT{$hours}H{$minutes}M");
-
-                $lastLessonDateTime = clone $nextLessonDate;
-                $lastLessonDateTime->setTime($startTime->format('H'), $startTime->format('i'));
-                $lastLessonDateTime->add($interval);
-
-                if ($now < $lastLessonDateTime || $completedLessonCount < $totalLessonCount) {
-                    for ($i = $completedLessonCount; $i < $totalLessonCount; $i++) {
-                        $lessonDate = $this->lessonDateService->calculateNextLessonDate(
-                            $nextLessonDate,
-                            $lessonDays,
-                            $i - $completedLessonCount
-                        );
-
-                        $originalDateFormatted = $lessonDate->format('d-m-Y');
-                        $rescheduledDate = null;
-                        if (isset($module['rescheduledLessons'])) {
-                            foreach ($module['rescheduledLessons'] as $rescheduledLesson) {
-                                if ($rescheduledLesson['originalDate'] === $originalDateFormatted) {
-                                    $rescheduledDate = $rescheduledLesson['newDate'];
-                                    break;
-                                }
-                            }
-                        }
-
-                        $lessonDateTime = clone $lessonDate;
-                        $lessonDateTime->setTime($startTime->format('H'), $startTime->format('i'));
-                        $lessonDateTime->add($interval);
-
-                        if ($now < $lessonDateTime) {
-                            $lessons[] = [
-                                'subjectId' => $subjectId,
-                                'moduleId' => $moduleId,
-                                // Используем уникальный ID
-                                'subjectName' => $subject->name,
-                                'moduleName' => $module['name'],
-                                'lessonDate' => $rescheduledDate ? $rescheduledDate : $lessonDate->format('d-m-Y'),
-                                'startTime' => $startTime->format('H:i')
-                            ];
-                        }
-                    }
-                }
+            $lesson = Lesson::find($lessonId);
+            if (!$lesson) {
+                return response()->json(['message' => 'Lesson not found'], 404);
             }
-        }
 
-        return response()->json($lessons);
+            Log::info('Lesson found', ['subject' => $lesson]);
+
+            // Получаем модуль, к которому принадлежит урок
+            $module = $lesson->module;
+
+            // Если предоставлено новое время
+            if ($request->has('new_time')) {
+                $newStartTime = Carbon::createFromFormat('H:i', $request->new_time);
+                $newEndTime = (clone $newStartTime)->addMinutes($module->duration);
+                $lesson->start_time = $newStartTime->toTimeString();
+                $lesson->end_time = $newEndTime->toTimeString();
+            }
+
+
+
+            // Если предоставлена новая дата
+            if ($request->has('new_date')) {
+                $lesson->lesson_date = $request->new_date;
+            }
+
+            $lesson->save();
+
+            Log::info('Lesson saved', ['module' => $lesson]);
+
+            return response()->json(['message' => 'Lesson rescheduled successfully'], 200);
+        } catch (\Exception $e) {
+            Log::error('Error in addModule', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Internal Server Error'], 500);
+        }
     }
 
-    public function rescheduleLesson(Request $request)
+    /**
+     * Получить все уроки конкретного пользователя со статусами "scheduled" и "rescheduled".
+     */
+    public function getAllLessonsForUser()
     {
-        $userId = $request->user()->id;
-        $subjectId = $request->input('subjectId');
-        $moduleId = $request->input('moduleId');
-        $newDate = $request->input('newDate'); // Новая дата в формате d-m-Y
-        $originalDate = $request->input('originalDate'); // Изначальная дата в формате d-m-Y
+        $userId = Auth::id();
 
-        // Поиск соответствующего предмета
-        $subject = Subject::where('id', $subjectId)->where('user_id', $userId)->first();
+        $lessons = Lesson::whereHas('module.subject', function ($query) use ($userId) {
+            $query->where('user_id', $userId);
+        })
+            ->whereIn('status', ['scheduled', 'rescheduled'])
+            ->get();
 
-        if (!$subject) {
-            return response()->json(['error' => 'Subject not found'], 404);
-        }
-
-        $moduleFound = false;
-        $now = new DateTime('now', new DateTimeZone('Europe/Moscow'));
-
-        foreach ($subject->modules as &$module) {
-            if ($module['id'] == $moduleId) {
-                $moduleFound = true;
-
-                // Проверка на активность модуля
-                $nextLessonDate = DateTime::createFromFormat('d-m-Y', $module['nextLessonDate']);
-                $startTime = DateTime::createFromFormat('H:i', $module['startTime']);
-                $durationArray = explode(' ', $module['duration']);
-                $hours = (int) $durationArray[0];
-                $minutes = (int) $durationArray[2];
-                $interval = new DateInterval("PT{$hours}H{$minutes}M");
-
-                $lastLessonDateTime = clone $nextLessonDate;
-                $lastLessonDateTime->setTime($startTime->format('H'), $startTime->format('i'));
-                $lastLessonDateTime->add($interval);
-
-                if (!($now < $lastLessonDateTime || $module['completedLessonCount'] < $module['totalLessonCount'])) {
-                    return response()->json(['error' => 'Module is not active, cannot reschedule'], 400);
-                }
-
-                // Проверка на количество переносов
-                if (isset($module['rescheduledLessons']) && count($module['rescheduledLessons']) >= 2) {
-                    return response()->json(['error' => 'Cannot reschedule more than 2 lessons for a single module'], 400);
-                }
-
-                // Добавление нового объекта перенесенной даты
-                $rescheduledLesson = [
-                    'originalDate' => $originalDate,
-                    // изначальная дата из запроса
-                    'newDate' => $newDate // новая дата из запроса
-                ];
-                $module['rescheduledLessons'][] = $rescheduledLesson;
-
-                break;
-            }
-        }
-
-        if (!$moduleFound) {
-            return response()->json(['error' => 'Module not found'], 404);
-        }
-
-        $subject->save();
-
-        return response()->json(['message' => 'Lesson rescheduled successfully']);
+        return response()->json(['lessons' => $lessons], 200);
     }
 }

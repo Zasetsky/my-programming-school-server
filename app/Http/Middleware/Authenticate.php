@@ -13,7 +13,7 @@ class Authenticate extends Middleware
     public function handle($request, Closure $next, ...$guards)
     {
         try {
-            $user = JWTAuth::parseToken()->authenticate(); // Предположим, что вы используете пакет tymon/jwt-auth
+            $user = JWTAuth::parseToken()->authenticate(); // tymon/jwt-auth
 
             $uuid = $user->id; // Получаем UUID из модели пользователя
 

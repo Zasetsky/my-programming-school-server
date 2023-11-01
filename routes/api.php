@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\LessonController;
-use App\Http\Controllers\HomeworkController;
+use App\Http\Controllers\ModuleController;
 
 // Маршрут для получения информации о текущем авторизованном пользователе
 Route::middleware('auth:api')->get('/user', function (Request $request) {
@@ -28,14 +28,12 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/updateSubject/{id}', [SubjectController::class, 'updateSubject']);
 
     // Роуты для модулей
-    Route::post('/addModuleToSubject/{subjectId}', [SubjectController::class, 'addModuleToSubject']);
-    Route::put('/updateModuleInSubject/{subjectId}/{moduleId}', [SubjectController::class, 'updateModuleInSubject']);
+    Route::post('/addModule/{subjectId}', [ModuleController::class, 'addModule']);
+    Route::put('/updateModule/{moduleId}', [ModuleController::class, 'updateModule']);
+    Route::get('/getModulesForSubject/{subjectId}', [ModuleController::class, 'getModulesForSubject']);
 
     // Роуты для уроков
-    Route::get('/getLessons', [LessonController::class, 'getAllUserLessons']);
-    Route::post('/rescheduleLesson', [LessonController::class, 'rescheduleLesson']);
-
-    // Роуты для домашней работы
-    Route::post('/addHomeworkToModule', [HomeworkController::class, 'addHomeworkToModule']);
-    Route::get('/getAllHomeworks', [HomeworkController::class, 'getAllHomeworks']);
+    Route::get('/getAllLessonsForUser', [LessonController::class, 'getAllLessonsForUser']);
+    Route::post('/setHomework/{lessonId}', [LessonController::class, 'setHomework']);
+    Route::post('/rescheduleLesson/{lessonId}', [LessonController::class, 'rescheduleLesson']);
 });

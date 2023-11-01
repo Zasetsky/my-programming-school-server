@@ -14,16 +14,15 @@ class Subject extends Model
         'subject_code',
         'user_id',
         'name',
-        'modules' // JSON-представление модулей
-    ];
-
-    protected $casts = [
-        'modules' => 'array',
-        // Laravel автоматически преобразует JSON в массив и обратно
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function modules()
+    {
+        return $this->hasMany(Module::class);
     }
 }
