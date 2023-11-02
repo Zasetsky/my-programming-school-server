@@ -97,6 +97,7 @@ class LessonController extends Controller
             $query->where('user_id', $userId);
         })
             ->whereIn('status', ['scheduled', 'rescheduled'])
+            ->orderBy('lesson_date', 'asc') // Сортировка по возрастанию даты
             ->get();
 
         return response()->json(['lessons' => $lessons], 200);

@@ -11,6 +11,7 @@ class Lesson extends Model
 
     protected $fillable = [
         'module_id',
+        'subject_name',
         'lesson_date',
         'start_time',
         'end_time',

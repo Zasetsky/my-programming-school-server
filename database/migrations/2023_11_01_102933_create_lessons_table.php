@@ -11,6 +11,7 @@ class CreateLessonsTable extends Migration
         Schema::create('lessons', function (Blueprint $table) {
             $table->id(); // Уникальный ID урока
             $table->unsignedBigInteger('module_id'); // ID модуля, к которому относится урок
+            $table->string('subject_name'); // Имя предмета
             $table->date('lesson_date'); // Дата урока
             $table->time('start_time'); // Время начала урока
             $table->time('end_time'); // Время окончания урока

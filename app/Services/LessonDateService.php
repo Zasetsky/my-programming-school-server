@@ -38,6 +38,7 @@ class LessonDateService
                     $lessonEndTime->addMinutes($duration);
 
                     $lessons[] = [
+                        'subject_name' => $module->subject->name,
                         'lesson_date' => $currentDate->toDateString(),
                         'start_time' => $lessonStartTime->toTimeString(),
                         'end_time' => $lessonEndTime->toTimeString(),
