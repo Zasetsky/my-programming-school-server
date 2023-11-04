@@ -16,11 +16,11 @@ class LessonDateService
     public function generateLessonsForModule(Module $module)
     {
         $lessons = [];
-        $startDate = Carbon::createFromFormat('d-m-Y', $module->startDate);
-        $startTime = Carbon::createFromFormat('H:i', $module->startTime);
+        $startDate = Carbon::createFromFormat('d-m-Y', $module->start_date);
+        $startTime = Carbon::createFromFormat('H:i', $module->start_time);
         $duration = $module->duration; // Продолжительность урока в минутах
-        $lessonDays = $module->lessonDays; // Дни недели
-        $totalLessonCount = $module->totalLessonCount; // Общее количество уроков
+        $lessonDays = $module->lesson_days; // Дни недели
+        $totalLessonCount = $module->total_lesson_count; // Общее количество уроков
 
         $currentLessonCount = 0;
         $currentDate = clone $startDate;
@@ -56,6 +56,14 @@ class LessonDateService
             $currentDate->addDay();
         }
 
-        return $lessons;
+        // Инициализация переменной для хранения даты следующего урока
+        $nextLessonDate = $lessons[0]['lesson_date'] ?? null; // Предполагаем, что первый урок - это следующий урок
+
+        // Возвращаем массив уроков и дату следующего урока
+        return [
+            'lessons' => $lessons,
+            'nextLessonDate' => $nextLessonDate
+        ];
+
     }
 }

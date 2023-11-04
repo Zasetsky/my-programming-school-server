@@ -15,14 +15,17 @@ class CreateModulesTable extends Migration
             $table->id(); // Уникальный ID модуля
             $table->unsignedBigInteger('subject_id'); // ID предмета, к которому относится модуль
             $table->string('name'); // Название модуля
-            $table->integer('totalLessonCount'); // Общее количество уроков
-            $table->integer('completedLessonCount')->default(0); // Завершенное количество уроков
-            $table->date('startDate'); // Дата начала модуля
-            $table->json('lessonDays'); // Дни недели для уроков
-            $table->time('startTime'); // Время начала урока
+            $table->integer('total_lesson_count'); // Общее количество уроков
+            $table->integer('completed_lesson_count')->default(0); // Завершенное количество уроков
+            $table->date('start_date'); // Дата начала модуля
+            $table->date('end_date')->nullable(); // Дата конца модуля
+            $table->json('lesson_days'); // Дни недели для уроков
+            $table->time('start_time'); // Время начала урока
             $table->string('duration'); // Продолжительность урока
             $table->string('grade')->default('not_set');
             $table->string('status')->default('unpaid');
+            $table->text('comment')->nullable();
+            $table->date('next_lesson_date')->nullable();
             $table->timestamps();
 
             $table->foreign('subject_id')->references('id')->on('subjects')->onDelete('cascade');

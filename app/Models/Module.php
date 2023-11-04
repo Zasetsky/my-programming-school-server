@@ -12,18 +12,21 @@ class Module extends Model
     protected $fillable = [
         'subject_id',
         'name',
-        'totalLessonCount',
-        'completedLessonCount',
-        'startDate',
-        'lessonDays',
-        'startTime',
+        'total_lesson_count',
+        'completed_lesson_count',
+        'start_date',
+        'end_date',
+        'lesson_days',
+        'start_time',
         'duration',
         'grade',
         'status',
+        'comment',
+        'next_lesson_date',
     ];
 
     protected $casts = [
-        'lessonDays' => 'array'
+        'lesson_days' => 'array'
     ];
 
     public function subject()
